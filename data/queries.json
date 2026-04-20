@@ -1,0 +1,102 @@
+[
+  {
+    "query": "How does AutoModel load pretrained weights?",
+    "relevant_files": ["modeling_auto.py"],
+    "answer": "AutoModel loads pretrained weights by mapping configuration classes to the correct model classes using internal mappings and then calling from_pretrained."
+  },
+  {
+    "query": "How are tokenizers implemented in Transformers?",
+    "relevant_files": ["tokenization_utils.py", "tokenization_utils_base.py"],
+    "answer": "Tokenizers are implemented using base classes that handle encoding, decoding, padding, and special tokens, with specific tokenizers extending these base utilities."
+  },
+  {
+    "query": "What is the purpose of PreTrainedModel?",
+    "relevant_files": ["modeling_utils.py"],
+    "answer": "PreTrainedModel is a base class that provides common functionality such as loading pretrained weights, saving models, and handling configuration."
+  },
+  {
+    "query": "How does Trainer handle training loops?",
+    "relevant_files": ["trainer.py"],
+    "answer": "Trainer manages the training loop including forward pass, loss computation, backward propagation, optimization, evaluation, and logging."
+  },
+  {
+    "query": "How is configuration handled in Transformers models?",
+    "relevant_files": ["configuration_utils.py"],
+    "answer": "Configuration is handled through config classes that define model parameters and are used to initialize and load models consistently."
+  },
+  {
+    "query": "What does from_pretrained do?",
+    "relevant_files": ["modeling_utils.py"],
+    "answer": "from_pretrained loads a model's weights and configuration from a pretrained checkpoint, either from local files or a remote repository."
+  },
+  {
+    "query": "How does pipeline API work?",
+    "relevant_files": ["pipelines.py"],
+    "answer": "The pipeline API abstracts model and tokenizer usage into a simple interface for tasks like text classification, translation, and question answering."
+  },
+  {
+    "query": "How are attention mechanisms implemented?",
+    "relevant_files": ["modeling_bert.py", "modeling_utils.py"],
+    "answer": "Attention mechanisms are implemented using multi-head attention layers that compute weighted representations of inputs based on query, key, and value matrices."
+  },
+  {
+    "query": "How does Trainer perform evaluation?",
+    "relevant_files": ["trainer.py"],
+    "answer": "Trainer performs evaluation by running the model on validation data, computing metrics, and aggregating results."
+  },
+  {
+    "query": "What is DataCollator used for?",
+    "relevant_files": ["data_collator.py"],
+    "answer": "DataCollator is used to dynamically batch and preprocess input data during training, including padding and formatting."
+  },
+  {
+    "query": "How are datasets loaded and processed?",
+    "relevant_files": ["trainer.py", "data_collator.py"],
+    "answer": "Datasets are loaded using external libraries and processed through tokenizers and collators before being passed into training loops."
+  },
+  {
+    "query": "How does generation API work for text generation?",
+    "relevant_files": ["generation_utils.py"],
+    "answer": "The generation API handles text generation using decoding strategies like greedy search, beam search, and sampling."
+  },
+  {
+    "query": "What is the role of AutoTokenizer?",
+    "relevant_files": ["tokenization_auto.py"],
+    "answer": "AutoTokenizer automatically selects the correct tokenizer class based on the model configuration."
+  },
+  {
+    "query": "How does saving and loading models work?",
+    "relevant_files": ["modeling_utils.py"],
+    "answer": "Models are saved using save_pretrained and loaded using from_pretrained, which handle weights and configurations."
+  },
+  {
+    "query": "What is the difference between model config and weights?",
+    "relevant_files": ["configuration_utils.py", "modeling_utils.py"],
+    "answer": "Configuration defines model architecture and parameters, while weights store the learned parameters of the model."
+  },
+  {
+    "query": "How are embeddings handled in Transformer models?",
+    "relevant_files": ["modeling_bert.py"],
+    "answer": "Embeddings are created by combining token, position, and segment embeddings before being passed into encoder layers."
+  },
+  {
+    "query": "What does the forward method do in models?",
+    "relevant_files": ["modeling_bert.py"],
+    "answer": "The forward method defines the computation performed during a forward pass, including applying layers and returning outputs."
+  },
+  {
+    "query": "How does gradient accumulation work in Trainer?",
+    "relevant_files": ["trainer.py"],
+    "answer": "Gradient accumulation allows multiple forward passes before performing a backward update to simulate larger batch sizes."
+  },
+  {
+    "query": "What is the role of model outputs classes?",
+    "relevant_files": ["modeling_outputs.py"],
+    "answer": "Model output classes standardize outputs such as logits, hidden states, and attentions in a structured format."
+  },
+  {
+    "query": "How are special tokens handled in tokenizers?",
+    "relevant_files": ["tokenization_utils_base.py"],
+    "answer": "Special tokens like CLS, SEP, and PAD are handled through tokenizer configurations and added during encoding."
+  }
+]

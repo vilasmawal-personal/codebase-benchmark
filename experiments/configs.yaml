@@ -1,0 +1,220 @@
+# --------------------------------------------------
+# 🔹 Global Settings (applies to all experiments)
+# --------------------------------------------------
+global:
+  repo_path: "~/transformers"
+
+  chunking:
+    chunk_size: 500
+    overlap: 50
+
+  retrieval:
+    top_k: 25
+    final_k: 3   # after reranking
+
+  evaluation:
+    ks: [1, 3, 5, 10, 25]
+
+  runtime:
+    device: "auto"   # auto / cpu / cuda
+    batch_size: 32
+
+# --------------------------------------------------
+# 🔹 Embedding Models
+# --------------------------------------------------
+embedders:
+  hf_minilm:
+    type: "hf"
+    model_name: "sentence-transformers/all-MiniLM-L6-v2"
+
+  hf_bge_base:
+    type: "hf"
+    model_name: "BAAI/bge-base-en"
+
+  hf_bge_large:
+    type: "hf"
+    model_name: "BAAI/bge-large-en"
+
+  hf_e5_base:
+    type: "hf"
+    model_name: "intfloat/e5-base-v2"
+
+  hf_e5_large:
+    type: "hf"
+    model_name: "intfloat/e5-large-v2"
+
+  ollama_nomic:
+    type: "ollama"
+    model_name: "nomic-embed-text"
+
+  ollama_mxbai:
+    type: "ollama"
+    model_name: "mxbai-embed-large"
+
+# --------------------------------------------------
+# 🔹 Rerankers
+# --------------------------------------------------
+rerankers:
+  none:
+    type: "none"
+
+  bge_reranker_base:
+    type: "hf"
+    model_name: "BAAI/bge-reranker-base"
+
+  bge_reranker_large:
+    type: "hf"
+    model_name: "BAAI/bge-reranker-large"
+
+# --------------------------------------------------
+# 🔹 LLMs (Coders)
+# --------------------------------------------------
+llms:
+  ollama_codellama:
+    type: "ollama"
+    model_name: "codellama"
+
+  ollama_deepseek:
+    type: "ollama"
+    model_name: "deepseek-coder"
+
+  hf_phi2:
+    type: "hf"
+    model_name: "microsoft/phi-2"
+
+  hf_deepseek:
+    type: "hf"
+    model_name: "deepseek-ai/deepseek-coder-1.3b-instruct"
+
+# --------------------------------------------------
+# 🔹 Retrieval Modes
+# --------------------------------------------------
+retrieval_modes:
+  dense:
+    type: "dense"
+
+  hybrid:
+    type: "hybrid"   # BM25 + dense
+
+# --------------------------------------------------
+# 🔹 Experiment Definitions
+# --------------------------------------------------
+experiments:
+
+  # ------------------------------------------
+  # 🧪 Baseline (fast + lightweight)
+  # ------------------------------------------
+  - name: "baseline_minilm_codellama"
+    embedder: hf_minilm
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  # ------------------------------------------
+  # 🧪 Strong HF embedding
+  # ------------------------------------------
+  - name: "bge_base_codellama"
+    embedder: hf_bge_base
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  - name: "bge_large_codellama"
+    embedder: hf_bge_large
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  # ------------------------------------------
+  # 🧪 E5 models
+  # ------------------------------------------
+  - name: "e5_base_codellama"
+    embedder: hf_e5_base
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  - name: "e5_large_codellama"
+    embedder: hf_e5_large
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  # ------------------------------------------
+  # 🧪 Ollama embeddings
+  # ------------------------------------------
+  - name: "nomic_codellama"
+    embedder: ollama_nomic
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  - name: "mxbai_codellama"
+    embedder: ollama_mxbai
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  # ------------------------------------------
+  # 🧪 Reranker experiments (IMPORTANT)
+  # ------------------------------------------
+  - name: "bge_base_with_reranker"
+    embedder: hf_bge_base
+    reranker: bge_reranker_base
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  - name: "bge_large_with_reranker"
+    embedder: hf_bge_large
+    reranker: bge_reranker_large
+    llm: ollama_codellama
+    retrieval_mode: dense
+
+  # ------------------------------------------
+  # 🧪 Hybrid retrieval
+  # ------------------------------------------
+  - name: "bge_hybrid"
+    embedder: hf_bge_base
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: hybrid
+
+  - name: "bge_hybrid_reranker"
+    embedder: hf_bge_base
+    reranker: bge_reranker_base
+    llm: ollama_codellama
+    retrieval_mode: hybrid
+
+  # ------------------------------------------
+  # 🧪 LLM comparison
+  # ------------------------------------------
+  - name: "bge_phi2"
+    embedder: hf_bge_base
+    reranker: bge_reranker_base
+    llm: hf_phi2
+    retrieval_mode: dense
+
+  - name: "bge_deepseek_hf"
+    embedder: hf_bge_base
+    reranker: bge_reranker_base
+    llm: hf_deepseek
+    retrieval_mode: dense
+
+  - name: "bge_deepseek_ollama"
+    embedder: hf_bge_base
+    reranker: bge_reranker_base
+    llm: ollama_deepseek
+    retrieval_mode: dense
+
+# --------------------------------------------------
+# 🔹 Optional: Chunk size experiments
+# --------------------------------------------------
+chunking_experiments:
+  - chunk_size: 256
+    overlap: 32
+
+  - chunk_size: 512
+    overlap: 50
+
+  - chunk_size: 800
+    overlap: 80
