@@ -5,7 +5,7 @@ global:
   repo_path: "/home/jds/Work/JashDS/Git Public Libs/transformers"
 
   chunking:
-    chunk_size: 500
+    chunk_size: 300
     overlap: 50
 
   retrieval:
@@ -212,7 +212,20 @@ experiments:
     llm: ollama_codellama
     retrieval_mode: dense    
 
-# --------------------------------------------------
+
+  - name: "light_rag_codellama"
+    embedder: hf_bge_base
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: light_rag
+
+
+  - name: "graph_rag_codellama"
+    embedder: hf_bge_base   # still used for LLM context if needed
+    reranker: none
+    llm: ollama_codellama
+    retrieval_mode: graph
+  # --------------------------------------------------
 # 🔹 Optional: Chunk size experiments
 # --------------------------------------------------
 chunking_experiments:
