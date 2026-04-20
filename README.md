@@ -231,6 +231,158 @@ python run.py
 
 ---
 
+## 🧪 Detailed model + benchmark testing workflow
+
+If you want a **repeatable process** to compare models (instead of just running once), use this checklist.
+
+### A) Validate your dataset format first (quick sanity check)
+
+The runner expects:
+
+* `data/repo_chunks.pkl` as a list of dicts containing `text` and `source`
+* `data/queries.json` as a list of dicts containing at least `query`
+
+Run:
+
+```bash
+python - <<'PY'
+import json, pickle
+
+chunks = pickle.load(open("data/repo_chunks.pkl", "rb"))
+queries = json.load(open("data/queries.json", "r", encoding="utf-8"))
+
+print("chunks:", len(chunks), "queries:", len(queries))
+print("first_chunk_keys:", sorted(chunks[0].keys()) if chunks else "EMPTY")
+print("first_query_keys:", sorted(queries[0].keys()) if queries else "EMPTY")
+PY
+```
+
+If `text`, `source`, or `query` are missing, fix data before benchmarking.
+
+### B) Start with a small smoke test experiment
+
+Before running the full matrix, temporarily keep only 1-2 experiments in `experiments/configs.yaml` (for example `baseline_minilm_codellama` and `bge_base_codellama`) and reduce runtime:
+
+* `global.retrieval.top_k: 10`
+* `global.retrieval.final_k: 2`
+* keep only a small subset of queries in `data/queries.json`
+
+Then run:
+
+```bash
+python run.py
+```
+
+This confirms your environment/model wiring works before long runs.
+
+### C) Pull required Ollama models (only if used in config)
+
+If your selected experiments include Ollama embedders/LLMs, make sure each model exists locally:
+
+```bash
+ollama list
+ollama pull nomic-embed-text
+ollama pull mxbai-embed-large
+ollama pull codellama
+ollama pull deepseek-coder
+```
+
+> Tip: You only need to pull models actually referenced by your active experiments.
+
+### D) Run targeted benchmark groups (recommended order)
+
+Use a staged approach so you can identify what improved results:
+
+1. **Embedding baseline group**  
+   Compare embedding models with same LLM + no reranker.
+2. **Reranker group**  
+   Keep embedder fixed and compare `none` vs reranker models.
+3. **Retrieval mode group**  
+   Compare `dense` vs `hybrid`.
+4. **LLM group**  
+   Keep retrieval stack fixed and swap only LLM.
+
+After each group:
+
+```bash
+python run.py
+cp results/results.json results/results_<group_name>.json
+```
+
+Example:
+
+```bash
+cp results/results.json results/results_embedding_group.json
+```
+
+### E) Compare outputs programmatically
+
+Use this quick script to sort experiments by retrieval and generation quality:
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("results/results.json")
+data = json.loads(path.read_text())
+
+ok = [x for x in data if "error" not in x]
+if not ok:
+    print("No successful experiments in", path)
+    raise SystemExit(0)
+
+def metric(item, *keys, default=0.0):
+    cur = item
+    for k in keys:
+        cur = cur.get(k, {})
+    return cur if isinstance(cur, (int, float)) else default
+
+ranked = sorted(
+    ok,
+    key=lambda x: (
+        metric(x, "retrieval", "recall@5"),
+        metric(x, "retrieval", "mrr"),
+        metric(x, "generation", "semantic_similarity"),
+    ),
+    reverse=True,
+)
+
+for r in ranked[:10]:
+    print(
+        f"{r['experiment']:<28} "
+        f"recall@5={metric(r,'retrieval','recall@5'):.3f} "
+        f"mrr={metric(r,'retrieval','mrr'):.3f} "
+        f"sem_sim={metric(r,'generation','semantic_similarity'):.3f}"
+    )
+PY
+```
+
+### F) Recommended acceptance criteria for “best” model stack
+
+Pick your winner using consistent gates, for example:
+
+* Retrieval quality improves (`recall@5`, `MRR`) with no large latency jump.
+* Generation quality improves (`semantic_similarity`, `context_relevance`).
+* No experiment errors in `results/results.json`.
+* Runtime is acceptable for your hardware.
+
+### G) Run full benchmark only after smoke test passes
+
+Once stable, restore full query set + full experiments and run:
+
+```bash
+python run.py
+```
+
+Keep the final artifact:
+
+```bash
+cp results/results.json results/results_full_run.json
+```
+
+---
+
 ## Step 5 — See results
 
 Output:
