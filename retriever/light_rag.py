@@ -3,6 +3,9 @@ from collections import defaultdict
 import re
 import math
 
+CAMEL_CASE_PATTERN = re.compile(r"([a-z])([A-Z])")
+NON_ALNUM_PATTERN = re.compile(r"[^a-zA-Z0-9_]+")
+
 
 class LightRAGRetriever:
     """
@@ -32,6 +35,7 @@ class LightRAGRetriever:
 
         # token -> document frequency
         self.df = defaultdict(int)
+        self.idf: Dict[str, float] = {}
 
         self.N = len(chunks)
 
@@ -56,6 +60,7 @@ class LightRAGRetriever:
         # compute document frequency
         for token, indices in self.inverted_index.items():
             self.df[token] = len(indices)
+            self.idf[token] = math.log((self.N + 1) / (self.df[token] + 1)) + 1
 
         print(f"✅ LightRAG index built with {len(self.inverted_index)} tokens")
 
@@ -71,10 +76,10 @@ class LightRAGRetriever:
         """
 
         # Split camelCase → camel Case
-        text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+        text = CAMEL_CASE_PATTERN.sub(r"\1 \2", text)
 
         # Replace non-alphanumeric (keep _)
-        text = re.sub(r"[^a-zA-Z0-9_]+", " ", text)
+        text = NON_ALNUM_PATTERN.sub(" ", text)
 
         tokens = text.lower().split()
 
@@ -87,11 +92,7 @@ class LightRAGRetriever:
         """
         Inverse document frequency
         """
-        df = self.df.get(token, 0)
-        if df == 0:
-            return 0.0
-
-        return math.log((self.N + 1) / (df + 1)) + 1
+        return self.idf.get(token, 0.0)
 
     # --------------------------------------------------
     # 🔹 Search

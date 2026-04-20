@@ -1,6 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 import numpy as np
 from collections import defaultdict
+from collections import deque
 
 
 class GraphRAGRetriever:
@@ -117,10 +118,10 @@ class GraphRAGRetriever:
 
             # BFS-like expansion
             visited = set()
-            queue = [(node_idx, 0)]
+            queue = deque([(node_idx, 0)])
 
             while queue:
-                current, depth = queue.pop(0)
+                current, depth = queue.popleft()
 
                 if current in visited or depth > self.expand_hops:
                     continue
@@ -134,7 +135,8 @@ class GraphRAGRetriever:
 
                 # expand neighbors
                 for neighbor in self.graph.get(current, []):
-                    queue.append((neighbor, depth + 1))
+                    if neighbor not in visited:
+                        queue.append((neighbor, depth + 1))
 
         return expanded_scores
 
