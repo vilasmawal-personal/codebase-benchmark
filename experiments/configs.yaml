@@ -2,7 +2,7 @@
 # 🔹 Global Settings (applies to all experiments)
 # --------------------------------------------------
 global:
-  repo_path: "/home/jds/Work/JashDS/Git Public Libs/transformers"
+  repo_path: "/home/ds-team-1/users/vilas.mawal/transformers"
 
   chunking:
     chunk_size: 300
