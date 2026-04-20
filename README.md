@@ -180,6 +180,13 @@ Example:
 
 ## Step 1 — Install dependencies
 
+Create a clean virtual environment first:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+```
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -208,7 +215,11 @@ You need:
 * `repo_chunks.pkl` → processed code chunks
 * `queries.json` → test questions
 
-(You already created these)
+Each chunk should be a dict with at least:
+
+```json
+{"text": "...", "source": "path/to/file.py"}
+```
 
 ---
 
@@ -277,6 +288,18 @@ results/results.json
 
 ---
 
+# 🛡️ Robustness improvements included
+
+This project now includes a few practical safeguards:
+
+* Input validation for config, queries, and chunks before experiment execution.
+* Graceful per-experiment failure handling (a bad model/config no longer crashes the full run).
+* Safe `top_k` handling to avoid asking retrieval for more items than available chunks.
+* Reranker mapping fixed to preserve exact chunk identity even when texts are duplicated.
+* Generation evaluator now falls back gracefully when semantic embedding model loading fails.
+
+---
+
 # 🧠 Real-world insight
 
 From real experiments:
@@ -318,6 +341,7 @@ This is how real companies test:
 
 * search systems
 * copilots
+* retrieval + generation quality together
 * AI assistants
 
 ---

@@ -23,16 +23,22 @@ from evaluation.generation_metrics import GenerationEvaluator
 # 🔹 Load YAML config
 # --------------------------------------------------
 def load_config(path: str) -> Dict[str, Any]:
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+    with open(path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    if not isinstance(cfg, dict):
+        raise ValueError(f"Config at '{path}' must be a dictionary-like YAML object.")
+    return cfg
 
 
 # --------------------------------------------------
 # 🔹 Load queries
 # --------------------------------------------------
 def load_queries(path: str) -> List[Dict]:
-    with open(path, "r") as f:
-        return json.load(f)
+    with open(path, "r", encoding="utf-8") as f:
+        queries = json.load(f)
+    if not isinstance(queries, list):
+        raise ValueError(f"Queries file at '{path}' must contain a JSON list.")
+    return queries
 
 
 # --------------------------------------------------
@@ -41,7 +47,30 @@ def load_queries(path: str) -> List[Dict]:
 def load_chunks(path: str):
     import pickle
     with open(path, "rb") as f:
-        return pickle.load(f)
+        chunks = pickle.load(f)
+    if not isinstance(chunks, list):
+        raise ValueError(f"Chunks file at '{path}' must contain a list of chunk dictionaries.")
+    return chunks
+
+
+def validate_inputs(config: Dict[str, Any], chunks: List[Dict], queries: List[Dict]) -> None:
+    required_top_level = ["global", "embedders", "llms", "rerankers", "experiments"]
+    for key in required_top_level:
+        if key not in config:
+            raise KeyError(f"Missing required config section: '{key}'")
+
+    if not chunks:
+        raise ValueError("No chunks loaded. 'data/repo_chunks.pkl' appears empty.")
+    if not queries:
+        raise ValueError("No queries loaded. 'data/queries.json' appears empty.")
+
+    for i, chunk in enumerate(chunks):
+        if not isinstance(chunk, dict) or "text" not in chunk or "source" not in chunk:
+            raise ValueError(f"Chunk at index {i} must contain at least 'text' and 'source' keys.")
+
+    for i, q in enumerate(queries):
+        if not isinstance(q, dict) or "query" not in q:
+            raise ValueError(f"Query at index {i} must contain a 'query' field.")
 
 
 # --------------------------------------------------
@@ -117,12 +146,16 @@ def run_experiment(exp_cfg, config, chunks, queries):
     )
 
     retrieval_mode = exp_cfg["retrieval_mode"]
+    if retrieval_mode not in {"dense", "hybrid"}:
+        raise ValueError(f"Unsupported retrieval_mode='{retrieval_mode}' in experiment '{exp_cfg['name']}'")
 
     # ------------------------------------------
     # 🔹 Build embeddings + FAISS
     # ------------------------------------------
     texts = [c["text"] for c in chunks]
     embeddings = embedder.embed(texts)
+    if embeddings.ndim != 2:
+        raise ValueError(f"Embedder returned invalid embedding shape: {embeddings.shape}")
 
     index = FAISSIndex(dim=embeddings.shape[1])
     index.add(embeddings)
@@ -146,12 +179,18 @@ def run_experiment(exp_cfg, config, chunks, queries):
 
         # ---- Dense retrieval
         q_emb = embedder.embed_query(query)
-        dense_indices = index.search_one(q_emb, top_k=config["global"]["retrieval"]["top_k"])
+        requested_top_k = int(config["global"]["retrieval"]["top_k"])
+        top_k = max(1, min(requested_top_k, len(chunks)))
+        dense_indices = index.search_one(q_emb, top_k=top_k)
 
         # ---- Hybrid
         if retrieval_mode == "hybrid":
-            bm25_indices = bm25.search(query, top_k=25)
-            final_indices = BM25Retriever.hybrid_merge(dense_indices, bm25_indices)
+            bm25_indices = bm25.search(query, top_k=top_k)
+            final_indices = BM25Retriever.hybrid_merge(
+                dense_indices,
+                bm25_indices,
+                top_k=top_k,
+            )
         else:
             final_indices = dense_indices
 
@@ -160,17 +199,12 @@ def run_experiment(exp_cfg, config, chunks, queries):
         # ---- Reranking
         if reranker:
             texts = [c["text"] for c in retrieved_chunks]
-            reranked_texts = reranker.rerank(
+            _, reranked_indices, _ = reranker.rerank_with_indices(
                 query,
                 texts,
                 top_k=config["global"]["retrieval"]["final_k"]
             )
-
-            # Map back
-            retrieved_chunks = [
-                next(c for c in retrieved_chunks if c["text"] == t)
-                for t in reranked_texts
-            ]
+            retrieved_chunks = [retrieved_chunks[i] for i in reranked_indices]
         else:
             retrieved_chunks = retrieved_chunks[:config["global"]["retrieval"]["final_k"]]
 
@@ -224,13 +258,21 @@ def main():
 
     queries = load_queries("data/queries.json")
     chunks = load_chunks("data/repo_chunks.pkl")
+    validate_inputs(config, chunks, queries)
 
     results = []
 
     for exp in config["experiments"]:
         start = time.time()
-
-        res = run_experiment(exp, config, chunks, queries)
+        try:
+            res = run_experiment(exp, config, chunks, queries)
+        except Exception as e:
+            res = {
+                "experiment": exp.get("name", "unknown"),
+                "error": str(e),
+                "retrieval": {},
+                "generation": {},
+            }
 
         res["time"] = round(time.time() - start, 2)
 

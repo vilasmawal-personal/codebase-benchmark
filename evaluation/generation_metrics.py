@@ -33,7 +33,11 @@ class GenerationEvaluator:
 
         self.model = None
         if SentenceTransformer is not None:
-            self.model = SentenceTransformer(embedding_model, device=device)
+            try:
+                self.model = SentenceTransformer(embedding_model, device=device)
+            except Exception:
+                # Keep evaluator functional with lightweight metrics when model init fails.
+                self.model = None
 
     # -----------------------------
     # 🔹 Core: Semantic similarity
