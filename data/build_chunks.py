@@ -1,3 +1,4 @@
+import ast
 import os
 import pickle
 from typing import Dict, List
@@ -45,6 +46,65 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
     return chunks
 
 
+def _split_by_lines(text: str, max_lines: int) -> List[str]:
+    lines = text.splitlines()
+    if not lines:
+        return []
+
+    return [
+        "\n".join(lines[i:i + max_lines])
+        for i in range(0, len(lines), max_lines)
+    ]
+
+
+def chunk_python_code(
+    code: str,
+    source_path: str,
+    max_lines: int = 30,
+) -> List[Dict[str, str]]:
+    chunks: List[Dict[str, str]] = []
+
+    try:
+        tree = ast.parse(code)
+
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                chunk_text = ast.get_source_segment(code, node)
+                if not chunk_text:
+                    continue
+
+                line_chunks = _split_by_lines(chunk_text, max_lines)
+                if len(line_chunks) > 1:
+                    for i, sub_chunk in enumerate(line_chunks, start=1):
+                        chunks.append({
+                            "text": sub_chunk,
+                            "source": f"{source_path}:{node.name}_part{i}"
+                        })
+                else:
+                    chunks.append({
+                        "text": chunk_text,
+                        "source": f"{source_path}:{node.name}"
+                    })
+
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                chunk_text = ast.get_source_segment(code, node)
+                if chunk_text:
+                    chunks.append({
+                        "text": chunk_text,
+                        "source": f"{source_path}:variable"
+                    })
+
+    except Exception:
+        # Fallback: plain line-based chunking.
+        for i, sub_chunk in enumerate(_split_by_lines(code, max_lines), start=1):
+            chunks.append({
+                "text": sub_chunk,
+                "source": f"{source_path}:fallback_part{i}"
+            })
+
+    return chunks
+
+
 def build_chunks(
     repo_path: str,
     output_path: str,
@@ -60,17 +120,19 @@ def build_chunks(
     all_chunks = []
 
     for doc in documents:
-        chunks = chunk_text(
-            doc["content"],
-            chunk_size=chunk_size,
-            overlap=overlap,
-        )
+        if doc["path"].endswith(".py"):
+            py_chunks = chunk_python_code(
+                doc["content"],
+                source_path=doc["path"],
+            )
 
+            if py_chunks:
+                all_chunks.extend(py_chunks)
+                continue
+
+        chunks = chunk_text(doc["content"], chunk_size=chunk_size, overlap=overlap)
         for chunk in chunks:
-            all_chunks.append({
-                "text": chunk,
-                "source": doc["path"]
-            })
+            all_chunks.append({"text": chunk, "source": doc["path"]})
 
     print(f"🧩 Created {len(all_chunks)} chunks")
 
