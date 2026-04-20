@@ -2,7 +2,7 @@
 # 🔹 Global Settings (applies to all experiments)
 # --------------------------------------------------
 global:
-  repo_path: "~/transformers"
+  repo_path: "/home/jds/Work/JashDS/Git Public Libs/transformers"
 
   chunking:
     chunk_size: 500
@@ -205,6 +205,12 @@ experiments:
     reranker: bge_reranker_base
     llm: ollama_deepseek
     retrieval_mode: dense
+
+  - name: "hf_e5_codellama_reranker"
+    embedder: hf_e5_large
+    reranker: bge_reranker_base
+    llm: ollama_codellama
+    retrieval_mode: dense    
 
 # --------------------------------------------------
 # 🔹 Optional: Chunk size experiments

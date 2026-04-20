@@ -17,6 +17,7 @@ from llms.ollama_llm import OllamaLLM
 
 from evaluation.retrieval_metrics import evaluate_retrieval, aggregate_metrics
 from evaluation.generation_metrics import GenerationEvaluator
+from data.build_chunks import build_chunks
 
 
 # --------------------------------------------------
@@ -44,14 +45,51 @@ def load_queries(path: str) -> List[Dict]:
 # --------------------------------------------------
 # 🔹 Load chunks (preprocessed)
 # --------------------------------------------------
-def load_chunks(path: str):
+def load_chunks(path: str, rebuild_fn=None):
+    import os
     import pickle
-    with open(path, "rb") as f:
-        chunks = pickle.load(f)
-    if not isinstance(chunks, list):
-        raise ValueError(f"Chunks file at '{path}' must contain a list of chunk dictionaries.")
-    return chunks
 
+    # Case 1: File does not exist
+    if not os.path.exists(path):
+        if rebuild_fn:
+            print("⚠️ Chunks file not found. Rebuilding...")
+            return rebuild_fn()
+        raise FileNotFoundError(f"Chunks file not found at '{path}'")
+
+    try:
+        with open(path, "rb") as f:
+            chunks = pickle.load(f)
+
+        # Case 2: Not a list
+        if not isinstance(chunks, list):
+            raise ValueError("Invalid format: not a list")
+
+        # Case 3: Empty list
+        if len(chunks) == 0:
+            raise ValueError("Chunks list is empty")
+        
+        if len(chunks) < 10:
+            raise ValueError("⚠️ Too few chunks, rebuilding...")
+
+        return chunks
+
+    except Exception as e:
+        print(f"⚠️ Invalid or corrupted chunks file: {e}")
+
+        if rebuild_fn:
+            print("🔄 Rebuilding chunks...")
+            return rebuild_fn()
+
+        raise
+
+def get_chunks(config):
+    chunk_path = "data/repo_chunks.pkl"
+    repo_path = os.path.expanduser(config["global"]["repo_path"])
+
+    return load_chunks(
+        chunk_path,
+        rebuild_fn=lambda: build_chunks(repo_path, chunk_path)
+    )
 
 def validate_inputs(config: Dict[str, Any], chunks: List[Dict], queries: List[Dict]) -> None:
     required_top_level = ["global", "embedders", "llms", "rerankers", "experiments"]
@@ -254,15 +292,18 @@ def run_experiment(exp_cfg, config, chunks, queries):
 # 🔹 Main
 # --------------------------------------------------
 def main():
+    TARGET_EXP = "hf_e5_codellama_reranker"
     config = load_config("experiments/configs.yaml")
 
     queries = load_queries("data/queries.json")
-    chunks = load_chunks("data/repo_chunks.pkl")
+    chunks = get_chunks(config)
     validate_inputs(config, chunks, queries)
 
     results = []
 
     for exp in config["experiments"]:
+        if exp["name"] != TARGET_EXP:
+            continue
         start = time.time()
         try:
             res = run_experiment(exp, config, chunks, queries)
