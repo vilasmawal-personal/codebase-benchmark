@@ -158,11 +158,14 @@ def hit_rate_at_k(
 def evaluate_retrieval(
     retrieved_sources: List[str],
     relevant_sources: List[str],
-    ks: List[int] = [1, 3, 5, 10, 25]
+    ks: List[int] = None,
 ) -> Dict[str, float]:
     """
     Compute multiple retrieval metrics for one query
     """
+
+    if ks is None:
+        ks = [1, 3, 5, 10, 25]
 
     results = {}
 

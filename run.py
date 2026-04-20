@@ -7,7 +7,6 @@ from typing import Dict, Any, List
 from embedders.hf_embedder import HFEmbedder
 from embedders.ollama_embedder import OllamaEmbedder
 
-from retriever import light_rag
 from retriever.faiss_index import FAISSIndex
 from retriever.bm25 import BM25Retriever
 
@@ -89,11 +88,27 @@ def load_chunks(path: str, rebuild_fn=None):
 
 def get_chunks(config):
     chunk_path = "data/repo_chunks.pkl"
-    repo_path = os.path.expanduser(config["global"]["repo_path"])
+    configured_repo_path = os.path.expanduser(config["global"].get("repo_path", ""))
+    repo_path = configured_repo_path if os.path.isdir(configured_repo_path) else os.getcwd()
+
+    chunk_cfg = config["global"].get("chunking", {})
+    chunk_size = int(chunk_cfg.get("chunk_size", 500))
+    overlap = int(chunk_cfg.get("overlap", 50))
+
+    if repo_path != configured_repo_path:
+        print(
+            f"⚠️ repo_path '{configured_repo_path}' does not exist. "
+            f"Falling back to current directory: {repo_path}"
+        )
 
     return load_chunks(
         chunk_path,
-        rebuild_fn=lambda: build_chunks(repo_path, chunk_path)
+        rebuild_fn=lambda: build_chunks(
+            repo_path,
+            chunk_path,
+            chunk_size=chunk_size,
+            overlap=overlap,
+        )
     )
 
 def validate_inputs(config: Dict[str, Any], chunks: List[Dict], queries: List[Dict]) -> None:
@@ -114,6 +129,15 @@ def validate_inputs(config: Dict[str, Any], chunks: List[Dict], queries: List[Di
     for i, q in enumerate(queries):
         if not isinstance(q, dict) or "query" not in q:
             raise ValueError(f"Query at index {i} must contain a 'query' field.")
+
+    experiments = config.get("experiments", [])
+    for i, exp in enumerate(experiments):
+        if exp.get("embedder") not in config["embedders"]:
+            raise KeyError(f"Experiment[{i}] uses unknown embedder: {exp.get('embedder')}")
+        if exp.get("llm") not in config["llms"]:
+            raise KeyError(f"Experiment[{i}] uses unknown llm: {exp.get('llm')}")
+        if exp.get("reranker") not in config["rerankers"]:
+            raise KeyError(f"Experiment[{i}] uses unknown reranker: {exp.get('reranker')}")
 
 
 # --------------------------------------------------
@@ -437,8 +461,6 @@ def run_experiment(exp_cfg, config, chunks, queries):
 # 🔹 Main
 # --------------------------------------------------
 def main():
-    TARGET_EXPERIMENTS = ["baseline_minilm_codellama"]
-
     config = load_config("experiments/configs.yaml")
 
     queries = load_queries("data/queries.json")
@@ -447,8 +469,14 @@ def main():
 
     results = []
 
+    target_experiments = {
+        name.strip()
+        for name in os.getenv("TARGET_EXPERIMENTS", "").split(",")
+        if name.strip()
+    }
+
     for exp in config["experiments"]:
-        if exp["name"] not in TARGET_EXPERIMENTS:
+        if target_experiments and exp["name"] not in target_experiments:
             continue
         start = time.time()
         try:
@@ -471,7 +499,7 @@ def main():
     # Save results
     os.makedirs("results", exist_ok=True)
 
-    with open("results/results.json", "w") as f:
+    with open("results/results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     print("\n✅ All experiments completed!")

@@ -1,12 +1,13 @@
 import os
 import pickle
+from typing import Dict, List
 
 
 CODE_EXTENSIONS = (".py", ".md", ".rst")
 
 
-def load_repo(repo_path):
-    documents = []
+def load_repo(repo_path: str) -> List[Dict[str, str]]:
+    documents: List[Dict[str, str]] = []
 
     for root, _, files in os.walk(repo_path):
         for file in files:
@@ -25,7 +26,14 @@ def load_repo(repo_path):
     return documents
 
 
-def chunk_text(text, chunk_size=500, overlap=50):
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be > 0")
+    if overlap < 0:
+        raise ValueError("overlap must be >= 0")
+    if overlap >= chunk_size:
+        raise ValueError("overlap must be smaller than chunk_size")
+
     chunks = []
     start = 0
 
@@ -37,7 +45,12 @@ def chunk_text(text, chunk_size=500, overlap=50):
     return chunks
 
 
-def build_chunks(repo_path, output_path):
+def build_chunks(
+    repo_path: str,
+    output_path: str,
+    chunk_size: int = 500,
+    overlap: int = 50,
+) -> List[Dict[str, str]]:
     print("📂 Reading repository...")
 
     documents = load_repo(repo_path)
@@ -47,7 +60,11 @@ def build_chunks(repo_path, output_path):
     all_chunks = []
 
     for doc in documents:
-        chunks = chunk_text(doc["content"])
+        chunks = chunk_text(
+            doc["content"],
+            chunk_size=chunk_size,
+            overlap=overlap,
+        )
 
         for chunk in chunks:
             all_chunks.append({

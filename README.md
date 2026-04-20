@@ -229,6 +229,12 @@ Each chunk should be a dict with at least:
 python run.py
 ```
 
+Run only selected experiments (comma-separated):
+
+```bash
+TARGET_EXPERIMENTS=baseline_minilm_codellama,bge_hybrid python run.py
+```
+
 ---
 
 ## 🧪 Detailed model + benchmark testing workflow
@@ -390,6 +396,15 @@ Output:
 ```text
 results/results.json
 ```
+
+---
+
+## 🔧 Production-readiness notes
+
+* Keep `requirements.txt` focused on project dependencies only (already cleaned).
+* Use `global.chunking.chunk_size` and `global.chunking.overlap` to control chunk building behavior.
+* If `global.repo_path` does not exist, the runner falls back to the current working directory.
+* Validate your data and config before long benchmark runs (the runner now fails fast for broken experiment references).
 
 ---
 
